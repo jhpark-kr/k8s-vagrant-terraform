@@ -1,0 +1,14 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars          # 실제 설정값은 제외 (example 파일만 공유)
+
+# Vagrant
+.vagrant/
+*.log
+
+# OS & IDE
+.DS_Store
+.idea/
+.vscode/
