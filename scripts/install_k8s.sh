@@ -39,6 +39,14 @@ sudo apt-get update
 sudo apt-get install -y kubelet kubeadm kubectl
 sudo apt-mark hold kubelet kubeadm kubectl
 
+# --- 추가할 자동화 로직 ---
+
+# 추가1-1. Kubelet이 eth1(192.168.56.x)을 사용하도록 강제 설정
+LOCAL_IP=$(ip addr show enp0s8 | grep "inet " | awk '{print $2}' | cut -d/ -f1)
+# 만약 인터페이스 이름이 eth1이라면 enp0s8 대신 eth1로 적어주세요.
+echo "KUBELET_EXTRA_ARGS=--node-ip=$LOCAL_IP" | sudo tee /etc/default/kubelet
+sudo systemctl restart kubelet
+
 # 4. 역할별 초기화 (Master vs Worker)
 if [ "$1" == "master" ]; then
     sudo kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=192.168.56.10
@@ -47,6 +55,13 @@ if [ "$1" == "master" ]; then
     sudo chown $(id -u):$(id -g) $HOME/.kube/config
     # 네트워크 플러그인 (Flannel) 설치
     kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+
+    # 추가1-2. Master 노드인 경우에만 Flannel 인터페이스 패치 실행
+
+    # Flannel이 설치될 때까지 잠시 대기
+    sleep 30 
+    # kubectl이 준비되었는지 확인 후 Flannel DaemonSet 수정
+    kubectl patch ds kube-flannel-ds -n kube-flannel --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--iface=enp0s8"}]'
 else
     echo "Worker node ready. Please run kubeadm join command manually or via Terraform output."
 fi
